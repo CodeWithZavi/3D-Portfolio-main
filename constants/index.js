@@ -443,6 +443,7 @@ const projects = [
         color: "pink-text-gradient",
       },
       {
+
         name: "mongodb",
         color: "orange-text-gradient",
       },
