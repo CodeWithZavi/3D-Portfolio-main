@@ -9,6 +9,7 @@ import {
   StarsCanvas,
   Tech,
   Works,
+  Achievements,
 } from "@/components";
 import HeroBackground from "@/components/HeroBackground";
 import EarthContainer from "@/components/EarthContainer";
@@ -53,6 +54,7 @@ function App({ loading }) {
       <Experience />
       <Tech />
       <Works />
+      <Achievements />
       {/* <Feedbacks /> */}
       <section className="relative z-0 flex md:flex-row justify-between flex-col-reverse w-full h-full overflow-x-hidden sm:p-8 p-2 pb-8">
         <Contact />

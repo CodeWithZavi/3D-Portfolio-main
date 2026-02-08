@@ -28,15 +28,12 @@ function About() {
         className="mt-4 dark:text-ctnSecondaryDark text-gray-300 text-[17px] w-full leading-[30px] flex flex-col justify-between gap-6"
       >
         <div>
-          Hello! I&apos;m Noman Shakir (CodeWithZavi), a passionate web developer and problem
-          solver. Currently,&apos;I'm in my final two semesters of a  in BSE Software Engineering at COMSATS University, Islamabad, Pakistan., with an expected
-          graduation year of 2027. I&apos;m a software developer with experience
-          in TypeScript, TailwindCSS, and JavaScript. I specialize in frameworks
-          such as React, Node.js, Next.js, React-Three-Fiber, and Three.js. My
-          knowledge extends to fundamental data structures and algorithms,
-          making me well-versed in frontend web development.
+          Hello! I&apos;m Noman Shakir (CodeWithZavi), a Full-Stack Developer and AI Engineer specializing in building intelligent applications. Currently pursuing my BSE in Software Engineering at COMSATS University Islamabad, Pakistan, with an expected graduation in 2027. I bring expertise in full-stack development using TypeScript, JavaScript, React, Node.js, and Next.js, combined with hands-on experience in AI/ML model development, training, and deployment.
           <br className="sm:block hidden" />
-          Let&apos;s collaborate to bring your ideas to life!
+          <br className="sm:block hidden" />
+          My technical proficiency spans backend architecture, Natural Language Processing (NLP), machine learning pipelines using Python and SQL, and creating production-ready AI-powered applications. I excel at transforming complex AI models into scalable, user-friendly solutions that solve real-world problems.
+          <br className="sm:block hidden" />
+          Let&apos;s collaborate to build innovative AI-driven solutions together!
         </div>
         <div className="w-fit break-words">
           <Link

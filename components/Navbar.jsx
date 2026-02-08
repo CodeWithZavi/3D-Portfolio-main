@@ -73,7 +73,7 @@ function Navbar() {
 								Noman Shakir (CodeWithZavi) &nbsp;
 								<span className="lg:block hidden">
 									{" "}
-									| Frontend Developer
+									| Full-Stack & AI Engineer
 								</span>
 							</p>
 						</Link>
