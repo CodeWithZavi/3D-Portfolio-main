@@ -1,8 +1,37 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { fadeIn, slideIn } from "../utils/motion";
+import DOMPurify from "dompurify";
+
+// Simple markdown-to-HTML for safe rendering in chat
+function renderMarkdown(text) {
+  if (!text) return "";
+  let html = text
+    // Bold
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    // Links — unwrapped URLs become clickable but truncated visually
+    .replace(/(https?:\/\/\S+)/g, (url) => {
+      const display = url.replace(/^https?:\/\//, "").slice(0, 30) + (url.length > 37 ? "..." : "");
+      return `<a href="${url}" target="_blank" class="text-purple-400 underline break-all">${display}</a>`;
+    })
+    // Markdown links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-purple-400 underline break-all">$1</a>')
+    // Inline code
+    .replace(/`([^`]+)`/g, '<code class="bg-gray-700 px-1 rounded text-purple-300">$1</code>')
+    // Bullet points
+    .replace(/^- (.+)/gm, '<li class="ml-3 list-disc">$1</li>')
+    // Line breaks
+    .replace(/\n/g, "<br/>");
+
+  // Wrap consecutive <li> in <ul>
+  html = html.replace(/((<li[^>]*>.*?<\/li>\s*)+)/g, '<ul class="my-1">$1</ul>');
+
+  return DOMPurify.sanitize(html, { ALLOWED_TAGS: ["strong", "a", "code", "li", "ul", "br"], ALLOWED_ATTR: ["href", "target", "class"] });
+}
 
 function MessageBubble({ message, isUser }) {
+  const rendered = useMemo(() => (isUser ? message : renderMarkdown(message)), [message, isUser]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -18,13 +47,13 @@ function MessageBubble({ message, isUser }) {
         </div>
       )}
       <div
-        className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+        className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed overflow-hidden break-words ${
           isUser
             ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-br-md"
             : "bg-gray-800/80 text-gray-200 rounded-bl-md border border-gray-700/50 whitespace-pre-wrap"
         }`}
       >
-        {message}
+        {isUser ? message : <div dangerouslySetInnerHTML={{ __html: rendered }} />}
       </div>
       {isUser && (
         <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center ml-2 flex-shrink-0">
@@ -58,7 +87,7 @@ function TypingIndicator() {
 
 const GREETING = {
   role: "assistant",
-  content: "Hi! I'm ZaviBot, Noman's AI assistant. Ask me anything about his skills, projects, experience, or achievements! I'm powered by RAG with Google Gemini.",
+  content: "Hi! I'm **ZaviBot**, Noman's AI assistant. Ask me about his **skills**, **projects**, **experience**, or **achievements**!",
 };
 
 function sanitizeInput(text) {
@@ -69,12 +98,21 @@ function sanitizeInput(text) {
     .slice(0, 500);
 }
 
+// Generate a stable session ID
+function getSessionId() {
+  if (!globalThis.__chatSessionId) {
+    globalThis.__chatSessionId = "sess_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+  return globalThis.__chatSessionId;
+}
+
 function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
   const [messages, setMessages] = useState([GREETING]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const sessionId = useRef(getSessionId());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -85,12 +123,10 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
     if (isOpen) setTimeout(() => inputRef.current?.focus(), 300);
   }, [isOpen]);
 
-  // Notify parent of streaming state
   useEffect(() => {
     onStreamingChange?.(isLoading);
   }, [isLoading, onStreamingChange]);
 
-  // Voice transcript listener
   useEffect(() => {
     const handler = (e) => { setInput(e.detail); };
     window.addEventListener("voiceTranscript", handler);
@@ -101,7 +137,6 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
     const text = sanitizeInput(input);
     if (!text || isLoading) return;
 
-    // Handle /clear command
     if (text === "/clear") {
       setMessages([GREETING]);
       setInput("");
@@ -118,7 +153,7 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, history, sessionId: sessionId.current }),
       });
 
       const contentType = res.headers.get("content-type") || "";
@@ -151,7 +186,6 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
             }
           }
         }
-        // Streaming complete
         setMessages((prev) => prev);
       } else {
         const data = await res.json();
@@ -175,7 +209,7 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
 
   const quickPrompts = [
     "What skills does Noman have?",
-    "Tell me about his ML projects",
+    "What projects has he built?",
     "What's his work experience?",
   ];
 
@@ -203,7 +237,7 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
                 </div>
                 <div>
                   <h3 className="text-white font-semibold text-sm">ZaviBot AI</h3>
-                  <p className="text-gray-400 text-xs">RAG + Gemini • Type /clear to reset</p>
+                  <p className="text-gray-400 text-xs">RAG + Groq • Type /clear to reset</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-lg transition-colors">
@@ -263,7 +297,7 @@ function ChatBot({ isOpen, onClose, onToggle, onStreamingChange }) {
               </button>
             </div>
             <p className="text-gray-600 text-[10px] mt-2 text-center">
-              Powered by RAG + Gemini • Free & Private
+              Powered by RAG + Groq Llama • Free & Private
             </p>
           </div>
         </motion.div>
