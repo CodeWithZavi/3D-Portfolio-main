@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { achievements } from "../constants";
@@ -26,7 +26,7 @@ function AchievementCard({ achievement, index, onImageClick }) {
                 {isPDF ? (
                     // PDF Preview with Document Icon
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-0">
-                        <svg
+                        <matesvg
                             className="w-20 h-20 text-purple-400 mb-3"
                             fill="currentColor"
                             viewBox="0 0 20 20"
@@ -36,7 +36,7 @@ function AchievementCard({ achievement, index, onImageClick }) {
                                 d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
                                 clipRule="evenodd"
                             />
-                        </svg>
+                        </matesvg>
                         <span className="text-gray-400 text-sm font-medium">PDF Certificate</span>
                     </div>
                 ) : (
@@ -132,8 +132,9 @@ function Achievements() {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [visibleCount, setVisibleCount] = useState(6);
     const [selectedImage, setSelectedImage] = useState(null);
+    const loadMoreRef = useRef(null);
 
-    // Extract unique categories from achievements
+    // Extract unique categories
     const categories = useMemo(() => {
         const uniqueCategories = [
             ...new Set(achievements.map((achievement) => achievement.category)),
@@ -158,6 +159,23 @@ function Achievements() {
     // Get visible achievements based on count
     const visibleAchievements = filteredAchievements.slice(0, visibleCount);
     const hasMore = visibleCount < filteredAchievements.length;
+
+    // IntersectionObserver for auto-loading more
+    useEffect(() => {
+        if (!hasMore) return;
+        const el = loadMoreRef.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    setVisibleCount((prev) => prev + 6);
+                }
+            },
+            { threshold: 0.1 }
+        );
+        observer.observe(el);
+        return () => observer.unobserve(el);
+    }, [hasMore, visibleCount]);
 
     const handleImageClick = (achievement) => {
         setSelectedImage(achievement);
@@ -265,15 +283,33 @@ function Achievements() {
                                 <p className="text-gray-300 text-sm mt-1">{selectedImage.date}</p>
                             </div>
 
-                            {/* Image Container */}
+                            {/* Image/PDF Container */}
                             <div className="relative w-full h-[90vh] flex items-center justify-center p-4">
-                                <Image
-                                    src={selectedImage.image}
-                                    alt={selectedImage.title}
-                                    fill
-                                    className="object-contain"
-                                    sizes="100vw"
-                                />
+                                {selectedImage.isPDF || selectedImage.image?.endsWith(".pdf") ? (
+                                    <div className="flex flex-col items-center justify-center text-center gap-6">
+                                        <svg className="w-24 h-24 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                                        </svg>
+                                        <div>
+                                            <p className="text-gray-300 text-lg font-medium mb-2">{selectedImage.title}</p>
+                                            <p className="text-gray-500 text-sm mb-6">This is a PDF certificate — download it to view the full document.</p>
+                                            <button
+                                                onClick={() => window.open(selectedImage.pdfUrl || selectedImage.image, "_blank")}
+                                                className="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg transition-all duration-300 shadow-lg"
+                                            >
+                                                Download PDF
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <Image
+                                        src={selectedImage.image}
+                                        alt={selectedImage.title}
+                                        fill
+                                        className="object-contain"
+                                        sizes="100vw"
+                                    />
+                                )}
                             </div>
 
                             {/* Action Buttons */}
@@ -321,35 +357,16 @@ function Achievements() {
                 </motion.div>
             )}
 
-            {/* Show More Button */}
+            {/* Infinite Scroll Sentinel */}
             {hasMore && (
                 <motion.div
+                    ref={loadMoreRef}
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
-                    className="flex justify-center mt-8"
+                    className="flex justify-center mt-8 py-4"
                 >
-                    <button
-                        onClick={() => setVisibleCount((prev) => prev + 6)}
-                        className="group px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-semibold rounded-full transition-all duration-300 shadow-lg hover:shadow-purple-500/50 hover:scale-105"
-                    >
-                        <span className="flex items-center gap-2">
-                            Show More
-                            <svg
-                                className="w-5 h-5 group-hover:translate-y-1 transition-transform duration-300"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 9l-7 7-7-7"
-                                />
-                            </svg>
-                        </span>
-                    </button>
+                    <div className="w-8 h-8 border-4 border-purple-400 border-t-transparent rounded-full animate-spin" />
                 </motion.div>
             )}
 

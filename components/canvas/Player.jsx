@@ -6,41 +6,56 @@ import {
   useFBX,
   useGLTF,
 } from "@react-three/drei";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { Canvas } from "@react-three/fiber";
 
 import CanvasLoader from "../Loader";
 import PlayerModel from "./models/PlayerModel";
 
-function Player({ isMobile }) {
+// Preload assets
+useGLTF.preload("models/player/player.gltf");
+
+function Player({ isMobile, isTalking }) {
   const group = useRef();
   const [animationsLoaded, setAnimationsLoaded] = useState(false);
 
-  const { nodes, materials, scene } = useGLTF("models/player/player.gltf");
-  const { animations: waveAnimation } = useFBX(
-    "animations/standing-greeting.fbx"
-  );
-  scene.frustumCulled = false;
+  const { nodes, materials } = useGLTF("models/player/player.gltf");
+  const { animations: waveAnimation } = useFBX("animations/standing-greeting.fbx");
 
   waveAnimation[0].name = "wave-animation";
-
   const { actions } = useAnimations(waveAnimation, group);
 
+  const playWave = useCallback(() => {
+    actions["wave-animation"]?.reset().play();
+  }, [actions]);
+
+  // Play wave once animations are loaded
   useEffect(() => {
     if (waveAnimation && actions["wave-animation"]) {
       setAnimationsLoaded(true);
     }
-    if (animationsLoaded) {
-      actions["wave-animation"].reset().play();
-    }
-  }, [animationsLoaded, waveAnimation, actions]);
+  }, [waveAnimation, actions]);
 
-  setTimeout(() => {
-    if (waveAnimation && actions["wave-animation"]) {
-      setAnimationsLoaded(true);
+  useEffect(() => {
+    if (animationsLoaded && !isTalking) {
+      playWave();
     }
-  }, 2000);
+  }, [animationsLoaded, isTalking, playWave]);
+
+  // Periodic waving
+  useEffect(() => {
+    if (isTalking || !animationsLoaded) return;
+    const interval = setInterval(playWave, 6000);
+    return () => clearInterval(interval);
+  }, [isTalking, animationsLoaded, playWave]);
+
+  // Stop waving when talking
+  useEffect(() => {
+    if (isTalking) {
+      actions["wave-animation"]?.stop();
+    }
+  }, [isTalking, actions]);
 
   return (
     <>
@@ -54,9 +69,9 @@ function Player({ isMobile }) {
         zoom={1.4}
       />
       <RandomizedLight position={[0, 1, 0]} />
-      <pointLight intensity={2} position={[1, 1.5, 0]} color={"#804dee"} />
-      <pointLight intensity={2} position={[-1, 1.5, 1]} color={"#4b42a7"} />
-      <pointLight intensity={2} position={[-1, 0.5, 1]} color={"#804dee"} />
+      <pointLight intensity={isTalking ? 3 : 2} position={[1, 1.5, 0]} color={"#804dee"} />
+      <pointLight intensity={isTalking ? 3 : 2} position={[-1, 1.5, 1]} color={"#4b42a7"} />
+      <pointLight intensity={isTalking ? 3 : 2} position={[-1, 0.5, 1]} color={"#804dee"} />
       {!isMobile && (
         <OrbitControls
           makeDefault
@@ -83,7 +98,7 @@ function Player({ isMobile }) {
   );
 }
 
-function PlayerCanvas({ isMobile }) {
+function PlayerCanvas({ isMobile, isTalking = false }) {
   return (
     <Canvas
       dpr={[1, 2]}
@@ -92,7 +107,7 @@ function PlayerCanvas({ isMobile }) {
         alpha: true,
       }}
     >
-      <Player isMobile={isMobile} />
+      <Player isMobile={isMobile} isTalking={isTalking} />
     </Canvas>
   );
 }

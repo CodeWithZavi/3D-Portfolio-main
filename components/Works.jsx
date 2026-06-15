@@ -93,6 +93,9 @@ function ProjectCard({
 function Works() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [useSemanticSearch, setUseSemanticSearch] = useState(false);
+  const [aiResults, setAiResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   const categories = useMemo(() => {
     const allCategories = projects.reduce((acc, project) => {
@@ -105,6 +108,9 @@ function Works() {
   }, []);
 
   const filteredProjects = useMemo(() => {
+    if (useSemanticSearch && aiResults) {
+      return aiResults;
+    }
     return projects.filter((project) => {
       const matchesSearch =
         project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -118,7 +124,37 @@ function Works() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, useSemanticSearch, aiResults]);
+
+  const handleSemanticSearch = async (query) => {
+    if (!query.trim()) {
+      setAiResults(null);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json();
+      if (data.results) {
+        const matched = data.results
+          .map((r) => projects.find((p) => {
+            const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20);
+            const rSlug = r.id.replace("proj-", "");
+            return rSlug === slug || p.name.slice(0, 15).toLowerCase().includes(r.title.slice(0, 15).toLowerCase());
+          }))
+          .filter(Boolean);
+        setAiResults(matched.length > 0 ? matched : null);
+      }
+    } catch {
+      setAiResults(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   return (
     <section className="xl:my-36 md:mx-36 p-8" id="projects">
@@ -135,7 +171,7 @@ function Works() {
         </h2>
       </motion.div>
 
-      {/* Search Bar */}
+      {/* Search Bar with AI Toggle */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -143,28 +179,76 @@ function Works() {
         transition={{ duration: 0.5, delay: 0.2 }}
         className="max-w-2xl mx-auto mb-8"
       >
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search projects by name, description, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full px-6 py-4 pl-12 rounded-full bg-gray-900/50 backdrop-blur-sm border-2 border-purple-500/30 focus:border-purple-500 outline-none text-white placeholder-gray-500 transition-all duration-300"
-          />
-          <svg
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder={
+                useSemanticSearch
+                  ? "Describe what kind of project you're looking for..."
+                  : "Search projects by name, description, or tags..."
+              }
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (useSemanticSearch && e.target.value.length > 2) {
+                  handleSemanticSearch(e.target.value);
+                }
+              }}
+              className="w-full px-6 py-4 pl-12 rounded-full bg-gray-900/50 backdrop-blur-sm border-2 border-purple-500/30 focus:border-purple-500 outline-none text-white placeholder-gray-500 transition-all duration-300"
             />
-          </svg>
+            <svg
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            {useSemanticSearch && isSearching && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* AI Semantic Search Toggle */}
+          <button
+            onClick={() => {
+              const turningOn = !useSemanticSearch;
+              setUseSemanticSearch(turningOn);
+              if (turningOn && searchQuery.length > 2) {
+                handleSemanticSearch(searchQuery);
+              }
+              if (!turningOn) {
+                setAiResults(null);
+              }
+            }}
+            className={`relative group px-4 py-4 rounded-full text-sm font-semibold transition-all duration-300 whitespace-nowrap ${
+              useSemanticSearch
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/50"
+                : "bg-gray-800/50 text-gray-300 hover:bg-gray-700/50 border border-gray-700/50 hover:border-purple-500/30"
+            }`}
+            title="AI-powered semantic search"
+          >
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI
+            </span>
+          </button>
         </div>
+        {useSemanticSearch && (
+          <p className="text-gray-500 text-xs mt-2 ml-4">
+            AI semantic search — describe projects in natural language
+          </p>
+        )}
       </motion.div>
 
       {/* Category Filters */}

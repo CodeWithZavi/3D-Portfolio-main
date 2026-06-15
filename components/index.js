@@ -8,6 +8,7 @@ import Works from "./Works";
 import Feedbacks from "./Feedbacks";
 import Contact from "./Contact";
 import Achievements from "./Achievements";
+import ChatBot from "./ChatBot";
 
 export {
 	Hero,
@@ -19,5 +20,6 @@ export {
 	Feedbacks,
 	Contact,
 	StarsCanvas,
-	Achievements
+	Achievements,
+	ChatBot
 };
